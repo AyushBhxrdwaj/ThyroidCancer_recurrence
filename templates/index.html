@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>AI Thyroid Cancer Recurrence Predictor</title>
+
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+
+<div class="container">
+
+    <h2>AI-Driven Thyroid Cancer Recurrence Prediction</h2>
+
+    <form action="/report" method="post">
+
+        <input type="number" name="Age" placeholder="Age" required>
+
+        <select name="Gender" required>
+            <option value="" disabled selected>Select Gender</option>
+            <option value="Male">Male</option>
+            <option value="Female">Female</option>
+        </select>
+
+        <select name="Risk" required>
+            <option value="" disabled selected>Select Risk Level</option>
+            <option value="Low">Low Risk</option>
+            <option value="Intermediate">Intermediate Risk</option>
+            <option value="High">High Risk</option>
+        </select>
+
+        <button type="submit">Predict</button>
+
+    </form>
+
+    <div class="result">
+        {{ prediction_text }}
+    </div>
+
+</div>
+
+</body>
+</html>

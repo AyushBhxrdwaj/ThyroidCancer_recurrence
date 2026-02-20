@@ -1,0 +1,139 @@
+/* ── Reset ── */
+*, *::before, *::after {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+/* ── Body ── */
+body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: #0a0a0a;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    color: #e4e4e7;
+}
+
+/* ── Card container ── */
+.container {
+    background: #18181b;
+    padding: 2.5rem 2rem;
+    border-radius: 16px;
+    border: 1px solid #27272a;
+    box-shadow:
+        0 0 0 1px rgba(255,255,255,0.03),
+        0 20px 60px rgba(0,0,0,0.5),
+        0 0 80px rgba(100,100,120,0.06);
+    width: 100%;
+    max-width: 420px;
+    text-align: center;
+}
+
+/* ── Heading ── */
+h2 {
+    color: #f4f4f5;
+    font-size: 1.25rem;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    margin-bottom: 1.75rem;
+    line-height: 1.4;
+}
+
+/* ── Form layout ── */
+form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+/* ── Inputs & Selects ── */
+input, select {
+    width: 100%;
+    padding: 0.7rem 0.9rem;
+    background: #09090b;
+    border: 1px solid #3f3f46;
+    border-radius: 8px;
+    color: #e4e4e7;
+    font-size: 0.95rem;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+input::placeholder {
+    color: #71717a;
+}
+
+input:focus, select:focus {
+    border-color: #a1a1aa;
+    box-shadow: 0 0 0 3px rgba(161,161,170,0.15);
+}
+
+select {
+    cursor: pointer;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%2371717a' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.9rem center;
+    padding-right: 2.2rem;
+}
+
+select option {
+    background: #18181b;
+    color: #e4e4e7;
+}
+
+/* ── Number input - hide spinner ── */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+input[type="number"] {
+    -moz-appearance: textfield;
+}
+
+/* ── Button ── */
+button {
+    width: 100%;
+    background: linear-gradient(135deg, #27272a, #3f3f46);
+    color: #f4f4f5;
+    padding: 0.75rem;
+    border: 1px solid #52525b;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    margin-top: 0.5rem;
+    transition: all 0.2s ease;
+    letter-spacing: 0.02em;
+}
+
+button:hover {
+    background: linear-gradient(135deg, #3f3f46, #52525b);
+    border-color: #71717a;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+    transform: translateY(-1px);
+}
+
+button:active {
+    transform: translateY(0);
+    box-shadow: none;
+}
+
+/* ── Result ── */
+.result {
+    margin-top: 1.5rem;
+    font-size: 1.05rem;
+    font-weight: 600;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    background: rgba(161,161,170,0.08);
+    border: 1px solid #27272a;
+    color: #a1a1aa;
+    min-height: 0;
+}
