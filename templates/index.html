@@ -1,8 +1,9 @@
 <!doctype html>
-<html>
+<html lang="en">
   <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>AI Thyroid Cancer Recurrence Predictor</title>
-
     <link
       rel="stylesheet"
       href="{{ url_for('static', filename='style.css') }}"
@@ -11,53 +12,62 @@
 
   <body>
     <div class="container">
-      <h2>AI-Driven Thyroid Cancer Recurrence Prediction</h2>
+      <div class="form-header">
+        <span class="form-logo">&#9878;</span>
+        <h2>Thyroid Cancer Recurrence Predictor</h2>
+        <p class="form-subtitle">
+          Enter patient details below and our AI model will predict the
+          likelihood of thyroid cancer recurrence.
+        </p>
+      </div>
+
+      {% if error %}
+      <div class="error-banner">{{ error }}</div>
+      {% endif %}
 
       <form action="/report" method="post">
-        <input type="number" name="Age" placeholder="Age" required />
+        <label for="Age">Age</label>
+        <input
+          type="number"
+          name="Age"
+          id="Age"
+          placeholder="e.g. 45"
+          required
+        />
 
-        <select name="Gender" required>
+        <label for="Gender">Gender</label>
+        <select name="Gender" id="Gender" required>
           <option value="" disabled selected>Select Gender</option>
           <option value="Male">Male</option>
           <option value="Female">Female</option>
         </select>
 
-        <select name="Risk" required>
+        <label for="Risk">Risk Level</label>
+        <select name="Risk" id="Risk" required>
           <option value="" disabled selected>Select Risk Level</option>
           <option value="Low">Low Risk</option>
           <option value="Intermediate">Intermediate Risk</option>
           <option value="High">High Risk</option>
         </select>
 
-        <button type="submit">Predict</button>
+        <button type="submit">
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            style="vertical-align: middle; margin-right: 4px"
+          >
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          Predict Recurrence
+        </button>
       </form>
-
-      <div class="result">{{ prediction_text }}</div>
-
-      {% if explanation %}
-      <div class="explanation">
-        <div class="explanation-header">
-          <span class="explanation-icon">&#9889;</span>
-          <h3>AI Explanation</h3>
-        </div>
-        <div class="explanation-body">
-          {% for line in explanation.split('\n') %} {% if line.strip() %} {% if
-          line.strip().startswith('What This Means') or
-          line.strip().startswith('Key Factors') or
-          line.strip().startswith('What You Can Do') %}
-          <h4 class="section-heading">{{ line.strip() }}</h4>
-          {% elif line.strip().startswith('- ') or line.strip().startswith('• ')
-          %}
-          <div class="bullet-item">
-            <span class="bullet-dot"></span>
-            <span>{{ line.strip()[2:] }}</span>
-          </div>
-          {% else %}
-          <p>{{ line.strip() }}</p>
-          {% endif %} {% endif %} {% endfor %}
-        </div>
-      </div>
-      {% endif %}
     </div>
   </body>
 </html>

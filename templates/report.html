@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Prediction Report — Thyroid Cancer AI</title>
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='style.css') }}"
+    />
+  </head>
+
+  <body>
+    <div class="report-page">
+
+      <a href="/" class="back-link">&larr; New Prediction</a>
+
+
+      <div class="report-card">
+        <div class="report-header">
+          <span class="report-icon">&#9878;</span>
+          <h2>Prediction Result</h2>
+        </div>
+
+        <div
+          class="result-badge {% if 'Unlikely' in prediction_text %}result-safe{% else %}result-risk{% endif %}"
+        >
+          {{ prediction_text }}
+        </div>
+      </div>
+
+      {% if explanation %}
+      <div class="explanation">
+        <div class="explanation-header">
+          <span class="explanation-icon">&#9889;</span>
+          <h3>AI Explanation</h3>
+        </div>
+        <div class="explanation-body">
+          {% for line in explanation.split('\n') %} {% if line.strip() %} {% if
+          line.strip().startswith('What This Means') or
+          line.strip().startswith('Key Factors') or
+          line.strip().startswith('What You Can Do') %}
+          <h4 class="section-heading">{{ line.strip() }}</h4>
+          {% elif line.strip().startswith('- ') or line.strip().startswith('• ')
+          %}
+          <div class="bullet-item">
+            <span class="bullet-dot"></span>
+            <span>{{ line.strip()[2:] }}</span>
+          </div>
+          {% else %}
+          <p>{{ line.strip() }}</p>
+          {% endif %} {% endif %} {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+      <a href="/download_report" class="download-link">
+        <button class="download-button" type="button">
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            style="vertical-align: middle; margin-right: 6px"
+          >
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="7 10 12 15 17 10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
+          </svg>
+          Download PDF Report
+        </button>
+      </a>
+    </div>
+  </body>
+</html>
