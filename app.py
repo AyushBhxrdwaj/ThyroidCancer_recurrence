@@ -25,7 +25,7 @@ app = Flask(__name__)
 model = joblib.load('models/random_forest_model.pkl')
 scaler = joblib.load('models/scaler.pkl')
 
-# Load training columns (IMPORTANT)
+# Load training columns
 model_columns = joblib.load('models/model_columns.pkl')
 
 feature_importance = joblib.load('models/feature_importances.pkl')
@@ -333,6 +333,11 @@ def create_pdf(patient_data, prediction, explanation):
 
 @app.route("/")
 def home():
+    return render_template('landing.html')
+
+
+@app.route("/predict")
+def predict_form():
     return render_template('index.html')
 
 
