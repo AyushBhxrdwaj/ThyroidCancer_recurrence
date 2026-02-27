@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request
+from flask import Flask, request, jsonify
 import joblib
 import numpy as np
 import pandas as pd
@@ -12,6 +12,7 @@ from reportlab.pdfgen import canvas as pdf_canvas
 from reportlab.lib.colors import HexColor, white, Color
 from datetime import datetime
 from flask import send_file
+from flask_cors import CORS
 
 load_dotenv()
 client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
@@ -20,6 +21,7 @@ client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
 
 app = Flask(__name__)
+CORS(app)
 
 # Load model and scaler
 model = joblib.load('models/random_forest_model.pkl')
@@ -331,40 +333,29 @@ def create_pdf(patient_data, prediction, explanation):
     c.save()
     return file_path
 
-@app.route("/")
-def home():
-    return render_template('landing.html')
-
-
-@app.route("/predict")
-def predict_form():
-    return render_template('index.html')
-
-
-@app.route('/report', methods=['POST'])
-def report():
+# ── JSON API for React frontend ──
+@app.route('/api/predict', methods=['POST'])
+def api_predict():
     try:
-       
-        input_data = request.form.to_dict()
+        input_data = request.get_json()
 
-       
+        # Map form values to match training data format
+        gender_map = {'Male': 'M', 'Female': 'F'}
+        if 'Gender' in input_data and input_data['Gender'] in gender_map:
+            input_data['Gender'] = gender_map[input_data['Gender']]
+
         input_df = pd.DataFrame([input_data])
-
-       
         input_df = pd.get_dummies(input_df)
-
-      
         input_df = input_df.reindex(columns=model_columns, fill_value=0)
 
         # Apply scaling
         input_scaled = scaler.transform(input_df)
 
-       
         prediction = model.predict(input_scaled)[0]
 
         top_features = [
-    f.replace(' ', '_') for f in feature_importance.head(5).index.tolist()
-]
+            f.replace(' ', '_') for f in feature_importance.head(5).index.tolist()
+        ]
 
         probability = model.predict_proba(input_scaled)[0][1] * 100
 
@@ -384,24 +375,31 @@ Write a clear, warm, and easy-to-understand explanation for the patient. Follow 
 - Keep the entire response under 200 words.
 - Use a reassuring and supportive tone throughout.
 - Do NOT use markdown formatting like ### or ** or *. Use plain text only."""
-        
+
         response = client.models.generate_content(
-    model = 'gemini-3-flash-preview',
-    contents=prompt
-)
+            model='gemini-3-flash-preview',
+            contents=prompt
+        )
         explanation = response.text
 
-        result = f"Recurrence Likely with {probability:.2f}% confidence" if prediction == 1 else f"Recurrence Unlikely with {100 - probability:.2f}% confidence"
+        result = (
+            f"Recurrence Likely with {probability:.2f}% confidence"
+            if prediction == 1
+            else f"Recurrence Unlikely with {100 - probability:.2f}% confidence"
+        )
 
-        pdf_path = create_pdf(input_data,result,explanation)
+        pdf_path = create_pdf(input_data, result, explanation)
 
-        return render_template('report.html', prediction_text=result, explanation=explanation)
+        return jsonify({
+            'prediction_text': result,
+            'explanation': explanation,
+        })
 
     except Exception as e:
-        return render_template('index.html',
-                               error="Something went wrong: " + str(e))
+        return jsonify({'error': 'Something went wrong: ' + str(e)}), 500
 
-@app.route('/download_report')
+
+@app.route('/api/download_report')
 def download_report():
     return send_file('prediction_report.pdf', as_attachment=True)
 
