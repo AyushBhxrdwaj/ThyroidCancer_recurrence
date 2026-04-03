@@ -202,9 +202,9 @@ export default function LandingPage() {
       {/* ── Hero Section ── */}
       <section className="relative min-h-screen flex items-center justify-center px-8 pt-24 pb-16 text-center overflow-hidden">
         {/* Glow */}
-        <div className="absolute top-[15%] left-1/2 -translate-x-1/2 w-[700px] h-[400px] bg-[radial-gradient(ellipse,rgba(99,102,241,0.12)_0%,transparent_70%)] pointer-events-none z-0" />
+        <div className="absolute top-[15%] left-1/2 -translate-x-1/2 w-175 h-100 bg-[radial-gradient(ellipse,rgba(99,102,241,0.12)_0%,transparent_70%)] pointer-events-none z-0" />
 
-        <div className="relative z-10 max-w-[720px]">
+        <div className="relative z-10 max-w-180">
           {/* Badge */}
           <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-accent/10 border border-accent/20 rounded-full text-[0.8rem] font-medium text-accent-hover mb-6">
             <span
@@ -220,7 +220,7 @@ export default function LandingPage() {
             <span className="gradient-text">Recurrence Predictor</span>
           </h1>
 
-          <p className="text-[1.1rem] text-text-secondary leading-relaxed max-w-[580px] mx-auto mb-8">
+          <p className="text-[1.1rem] text-text-secondary leading-relaxed max-w-145 mx-auto mb-8">
             Harness the power of machine learning to predict the likelihood of
             thyroid cancer recurrence. Our AI model analyzes patient data to
             deliver instant, explainable clinical insights — empowering both

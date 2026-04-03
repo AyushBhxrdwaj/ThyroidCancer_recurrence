@@ -23,14 +23,40 @@ client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 app = Flask(__name__)
 CORS(app)
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+MODEL_DIR = os.path.join(BASE_DIR, 'models')
+DATA_PATH = os.path.join(BASE_DIR, 'data.csv')
+REPORT_PATH = os.path.join(BASE_DIR, 'prediction_report.pdf')
+
 # Load model and scaler
-model = joblib.load('models/random_forest_model.pkl')
-scaler = joblib.load('models/scaler.pkl')
+model = joblib.load(os.path.join(MODEL_DIR, 'random_forest_model.pkl'))
+scaler = joblib.load(os.path.join(MODEL_DIR, 'scaler.pkl'))
 
 # Load training columns
-model_columns = joblib.load('models/model_columns.pkl')
+model_columns = joblib.load(os.path.join(MODEL_DIR, 'model_columns.pkl'))
 
-feature_importance = joblib.load('models/feature_importances.pkl')
+feature_importance = joblib.load(os.path.join(MODEL_DIR, 'feature_importances.pkl'))
+historical_data = pd.read_csv(DATA_PATH)
+
+GENDER_MAP = {'Male': 'M', 'Female': 'F'}
+SIMILARITY_WEIGHTS = {
+    'Age': 50.0,
+    'Gender': 25.0,
+    'Risk': 25.0,
+    'Smoking': 10.0,
+    'Hx Smoking': 10.0,
+    'Hx Radiothreapy': 10.0,
+    'Thyroid Function': 10.0,
+    'Physical Examination': 10.0,
+    'Adenopathy': 10.0,
+    'Pathology': 10.0,
+    'Focality': 10.0,
+    'T': 8.0,
+    'N': 8.0,
+    'M': 8.0,
+    'Stage': 8.0,
+    'Response': 8.0,
+}
 
 
 
@@ -78,9 +104,220 @@ def _wrap_text(text, max_chars=88):
     return lines
 
 
+def _generate_gemini_text(prompt):
+    response = client.models.generate_content(
+        model='gemini-3-flash-preview',
+        contents=prompt,
+    )
+    return (response.text or "").strip()
+
+
+def _coerce_number(value):
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _to_python(value):
+    if pd.isna(value):
+        return None
+    if isinstance(value, (np.integer,)):
+        return int(value)
+    if isinstance(value, (np.floating,)):
+        float_value = float(value)
+        return int(float_value) if float_value.is_integer() else float_value
+    if isinstance(value, (np.bool_,)):
+        return bool(value)
+    if hasattr(value, 'item'):
+        extracted = value.item()
+        return _to_python(extracted)
+    return value
+
+
+def _display_gender(value):
+    normalized = str(value).strip().lower()
+    if normalized in {'m', 'male'}:
+        return 'Male'
+    if normalized in {'f', 'female'}:
+        return 'Female'
+    return _to_python(value)
+
+
+def _canonical_gender(value):
+    normalized = str(value).strip().lower()
+    if normalized in {'m', 'male'}:
+        return 'M'
+    if normalized in {'f', 'female'}:
+        return 'F'
+    return str(value).strip()
+
+
+def _clean_input_data(raw_input_data):
+    patient_data = dict(raw_input_data or {})
+    input_data = dict(patient_data)
+
+    if 'Gender' in input_data and input_data['Gender'] in GENDER_MAP:
+        input_data['Gender'] = GENDER_MAP[input_data['Gender']]
+
+    return patient_data, input_data
+
+
+def _build_model_payload(raw_input_data):
+    patient_data, input_data = _clean_input_data(raw_input_data)
+    input_df = pd.DataFrame([input_data])
+    input_df = pd.get_dummies(input_df)
+    input_df = input_df.reindex(columns=model_columns, fill_value=0)
+    input_scaled = scaler.transform(input_df)
+    return patient_data, input_data, input_df, input_scaled
+
+
+def _predict_case(raw_input_data):
+    patient_data, input_data, input_df, input_scaled = _build_model_payload(raw_input_data)
+    prediction = int(model.predict(input_scaled)[0])
+    probability = float(model.predict_proba(input_scaled)[0][1] * 100)
+
+    prediction_text = (
+        f'Recurrence Likely with {probability:.2f}% confidence'
+        if prediction == 1
+        else f'Recurrence Unlikely with {100 - probability:.2f}% confidence'
+    )
+
+    return {
+        'patient_data': patient_data,
+        'input_data': input_data,
+        'input_df': input_df,
+        'input_scaled': input_scaled,
+        'prediction': prediction,
+        'confidence': round(probability, 2),
+        'prediction_text': prediction_text,
+        'risk_label': 'high' if prediction == 1 else 'low',
+    }
+
+
+def _build_changes(original_data, scenario_data):
+    changes = []
+    combined_keys = sorted(set(original_data.keys()) | set(scenario_data.keys()))
+
+    for key in combined_keys:
+        original_value = original_data.get(key)
+        scenario_value = scenario_data.get(key)
+
+        if str(original_value) == str(scenario_value):
+            continue
+
+        changes.append(
+            {
+                'field': key,
+                'from': _to_python(original_value),
+                'to': _to_python(scenario_value),
+            }
+        )
+
+    return changes
+
+
+def _score_similarity(row, target_data):
+    score = 0.0
+    possible = 0.0
+    reasons = []
+
+    target_age = _coerce_number(target_data.get('Age'))
+    row_age = _coerce_number(row.get('Age'))
+    if target_age is not None and row_age is not None:
+        possible += SIMILARITY_WEIGHTS['Age']
+        age_diff = abs(row_age - target_age)
+        age_score = max(0.0, SIMILARITY_WEIGHTS['Age'] * (1 - min(age_diff, 20) / 20))
+        score += age_score
+        if age_diff == 0:
+            reasons.append('Exact age match')
+        elif age_diff <= 5:
+            reasons.append('Age is very close')
+        elif age_diff <= 10:
+            reasons.append('Age is close')
+
+    for field, weight in SIMILARITY_WEIGHTS.items():
+        if field == 'Age':
+            continue
+
+        target_value = target_data.get(field)
+        row_value = row.get(field)
+        if target_value in (None, '') or pd.isna(row_value):
+            continue
+
+        possible += weight
+        if field == 'Gender':
+            target_value = _canonical_gender(target_value)
+            row_value = _canonical_gender(row_value)
+        else:
+            target_value = str(target_value).strip().lower()
+            row_value = str(row_value).strip().lower()
+
+        if row_value == target_value:
+            score += weight
+            reasons.append(f'Same {field.lower()}')
+
+    if possible == 0:
+        return 0.0, ['No comparable fields available']
+
+    normalized = round((score / possible) * 100, 1)
+    if not reasons:
+        reasons.append('Closest available historical profile')
+    return normalized, reasons[:3]
+
+
+def _build_similar_cases(target_data, limit=3):
+    if historical_data.empty:
+        return []
+
+    cases = []
+    for _, row in historical_data.iterrows():
+        match_score, reasons = _score_similarity(row, target_data)
+        if match_score <= 0:
+            continue
+
+        age = _to_python(row.get('Age'))
+        gender = _display_gender(row.get('Gender'))
+        risk = _to_python(row.get('Risk'))
+        recurred_value = str(row.get('Recurred', '')).strip().lower()
+        if recurred_value == 'yes':
+            outcome_label = 'Recurrence observed'
+        elif recurred_value == 'no':
+            outcome_label = 'No recurrence observed'
+        else:
+            outcome_label = _to_python(row.get('Recurred')) or 'Unknown outcome'
+
+        cases.append(
+            {
+                'Age': age,
+                'Gender': gender,
+                'Risk': risk,
+                'Stage': _to_python(row.get('Stage')),
+                'Response': _to_python(row.get('Response')),
+                'Recurred': _to_python(row.get('Recurred')),
+                'match_score': match_score,
+                'match_reasons': reasons,
+                'outcome_label': outcome_label,
+                'summary': f"{age} year old {gender} patient with {risk} risk",
+            }
+        )
+
+    cases.sort(key=lambda item: item['match_score'], reverse=True)
+    return cases[:limit]
+
+
+def _summarize_scenario(base_data, scenario_data):
+    changes = _build_changes(base_data, scenario_data)
+    if not changes:
+        return 'The scenario keeps the report inputs unchanged.'
+
+    changed_fields = ', '.join(change['field'] for change in changes)
+    return f"The scenario changes: {changed_fields}."
+
+
 def create_pdf(patient_data, prediction, explanation):
 
-    file_path = "prediction_report.pdf"
+    file_path = REPORT_PATH
     c = pdf_canvas.Canvas(file_path, pagesize=letter)
     width, height = letter
 
@@ -333,31 +570,19 @@ def create_pdf(patient_data, prediction, explanation):
     c.save()
     return file_path
 
-# ── JSON API for React frontend ──
+
 @app.route('/api/predict', methods=['POST'])
 def api_predict():
     try:
-        input_data = request.get_json()
-
-        # Map form values to match training data format
-        gender_map = {'Male': 'M', 'Female': 'F'}
-        if 'Gender' in input_data and input_data['Gender'] in gender_map:
-            input_data['Gender'] = gender_map[input_data['Gender']]
-
-        input_df = pd.DataFrame([input_data])
-        input_df = pd.get_dummies(input_df)
-        input_df = input_df.reindex(columns=model_columns, fill_value=0)
-
-        # Apply scaling
-        input_scaled = scaler.transform(input_df)
-
-        prediction = model.predict(input_scaled)[0]
+        raw_input_data = request.get_json(silent=True) or {}
+        prediction_result = _predict_case(raw_input_data)
+        patient_data = prediction_result['patient_data']
+        prediction = prediction_result['prediction']
+        probability = prediction_result['confidence']
 
         top_features = [
             f.replace(' ', '_') for f in feature_importance.head(5).index.tolist()
         ]
-
-        probability = model.predict_proba(input_scaled)[0][1] * 100
 
         prompt = f"""You are a compassionate medical AI assistant explaining thyroid cancer recurrence predictions to patients.
 
@@ -376,24 +601,162 @@ Write a clear, warm, and easy-to-understand explanation for the patient. Follow 
 - Use a reassuring and supportive tone throughout.
 - Do NOT use markdown formatting like ### or ** or *. Use plain text only."""
 
-        response = client.models.generate_content(
-            model='gemini-3-flash-preview',
-            contents=prompt
-        )
-        explanation = response.text
+        explanation = _generate_gemini_text(prompt)
 
-        result = (
-            f"Recurrence Likely with {probability:.2f}% confidence"
-            if prediction == 1
-            else f"Recurrence Unlikely with {100 - probability:.2f}% confidence"
-        )
+        result = prediction_result['prediction_text']
 
-        pdf_path = create_pdf(input_data, result, explanation)
+        pdf_path = create_pdf(patient_data, result, explanation)
 
         return jsonify({
             'prediction_text': result,
             'explanation': explanation,
+            'patient_data': patient_data,
+            'confidence': round(probability, 2),
+            'risk_label': 'high' if prediction == 1 else 'low',
+            'top_features': top_features,
         })
+
+    except Exception as e:
+        return jsonify({'error': 'Something went wrong: ' + str(e)}), 500
+
+
+@app.route('/api/simulate_risk', methods=['POST'])
+def simulate_risk():
+    try:
+        payload = request.get_json(silent=True) or {}
+        base_patient_data = dict(
+            payload.get('patient_data')
+            or (payload.get('report_context') or {}).get('patient_data')
+            or {}
+        )
+        scenario_updates = dict(payload.get('scenario') or payload.get('changes') or {})
+
+        if not base_patient_data:
+            return jsonify({'error': 'Patient data is required'}), 400
+
+        scenario_data = dict(base_patient_data)
+        for key, value in scenario_updates.items():
+            if value in (None, ''):
+                continue
+            scenario_data[key] = value
+
+        baseline = _predict_case(base_patient_data)
+        scenario = _predict_case(scenario_data)
+        confidence_delta = round(float(scenario['confidence']) - float(baseline['confidence']), 2)
+
+        if confidence_delta > 0:
+            direction = 'increased'
+            insight = (
+                f"The scenario raises the model's recurrence probability by {confidence_delta:.1f} points compared with the current report."
+            )
+        elif confidence_delta < 0:
+            direction = 'decreased'
+            insight = (
+                f"The scenario lowers the model's recurrence probability by {abs(confidence_delta):.1f} points compared with the current report."
+            )
+        else:
+            direction = 'unchanged'
+            insight = "The scenario does not change the model's recurrence probability."
+
+        similar_cases = _build_similar_cases(scenario_data)
+        if similar_cases:
+            top_match = similar_cases[0]
+            insight += (
+                f" The closest historical case is a {top_match['match_score']:.1f}% match and ended with {top_match['outcome_label'].lower()}."
+            )
+
+        return jsonify(
+            {
+                'baseline': {
+                    'prediction_text': baseline['prediction_text'],
+                    'confidence': baseline['confidence'],
+                    'risk_label': baseline['risk_label'],
+                    'patient_data': baseline['patient_data'],
+                },
+                'scenario': {
+                    'prediction_text': scenario['prediction_text'],
+                    'confidence': scenario['confidence'],
+                    'risk_label': scenario['risk_label'],
+                    'patient_data': scenario_data,
+                },
+                'confidence_delta': confidence_delta,
+                'risk_direction': direction,
+                'changes': _build_changes(base_patient_data, scenario_data),
+                'similar_cases': similar_cases,
+                'insight': insight,
+                'summary': _summarize_scenario(base_patient_data, scenario_data),
+            }
+        )
+
+    except Exception as e:
+        return jsonify({'error': 'Something went wrong: ' + str(e)}), 500
+
+
+@app.route('/api/report_chat', methods=['POST'])
+def report_chat():
+    try:
+        payload = request.get_json(silent=True) or {}
+        question = (payload.get('question') or '').strip()
+
+        if not question:
+            return jsonify({'error': 'Question is required'}), 400
+
+        report_context = payload.get('report_context') or {}
+        messages = payload.get('messages') or []
+
+        patient_data = report_context.get('patient_data') or {}
+        patient_lines = (
+            "\n".join(f"- {key}: {value}" for key, value in patient_data.items())
+            if patient_data
+            else "- Not provided"
+        )
+
+        top_features = report_context.get('top_features') or []
+        feature_lines = ", ".join(str(feature) for feature in top_features) if top_features else "Not provided"
+
+        conversation_lines = []
+        for message in messages[-10:]:
+            content = str(message.get('content', '')).strip()
+            if not content:
+                continue
+            role = str(message.get('role', 'user')).strip() or 'user'
+            conversation_lines.append(f"{role.title()}: {content}")
+
+        conversation_history = "\n".join(conversation_lines) if conversation_lines else "None"
+
+        prompt = f"""You are a careful, compassionate chatbot inside a thyroid cancer recurrence report.
+Your job is to answer questions about this report only, using only the provided context.
+
+Report context:
+- Prediction: {report_context.get('prediction_text') or 'Not provided'}
+- Confidence: {report_context.get('confidence') if report_context.get('confidence') is not None else 'Not provided'}
+- Risk label: {report_context.get('risk_label') or 'Not provided'}
+- Patient data:
+{patient_lines}
+- Key factors: {feature_lines}
+- Report explanation:
+{report_context.get('explanation') or 'Not provided'}
+
+Conversation history:
+{conversation_history}
+
+User question:
+{question}
+
+Rules:
+- Use only the report context above. Do not invent facts.
+- If the user asks something not contained in the report, say that you cannot confirm it from the report and suggest speaking with a clinician.
+- Explain medical ideas in plain language.
+- Be concise, supportive, and practical.
+- Do not give a diagnosis or replace professional medical advice.
+- Do not use markdown headings.
+"""
+
+        answer = _generate_gemini_text(prompt)
+        if not answer:
+            answer = 'I could not generate a response right now. Please try again.'
+
+        return jsonify({'answer': answer})
 
     except Exception as e:
         return jsonify({'error': 'Something went wrong: ' + str(e)}), 500
@@ -401,7 +764,7 @@ Write a clear, warm, and easy-to-understand explanation for the patient. Follow 
 
 @app.route('/api/download_report')
 def download_report():
-    return send_file('prediction_report.pdf', as_attachment=True)
+    return send_file(REPORT_PATH, as_attachment=True)
 
 
 if __name__ == "__main__":

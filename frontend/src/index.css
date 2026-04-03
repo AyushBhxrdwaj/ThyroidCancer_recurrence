@@ -23,6 +23,12 @@ html {
   scroll-behavior: smooth;
 }
 
+html,
+body,
+#root {
+  min-height: 100vh;
+}
+
 body {
   font-family:
     "Inter",
@@ -31,11 +37,28 @@ body {
     -apple-system,
     sans-serif;
   background-color: var(--color-bg);
+  background-image:
+    radial-gradient(
+      circle at 18% 18%,
+      rgba(99, 102, 241, 0.18) 0%,
+      transparent 32%
+    ),
+    radial-gradient(
+      circle at 82% 12%,
+      rgba(6, 182, 212, 0.12) 0%,
+      transparent 28%
+    ),
+    url("/medical-thyroid-bg.svg");
+  background-position: center, center, center;
+  background-repeat: no-repeat, no-repeat, no-repeat;
+  background-size: cover, cover, cover;
+  background-attachment: fixed, fixed, fixed;
   color: var(--color-text-primary);
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   margin: 0;
   padding: 0;
+  color-scheme: dark;
 }
 
 /* Gradient text animation */

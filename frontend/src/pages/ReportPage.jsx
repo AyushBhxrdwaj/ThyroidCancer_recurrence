@@ -1,7 +1,9 @@
 import { Link, useLocation, Navigate } from "react-router-dom";
 import {
   ArrowLeft,
+  ArrowRight,
   Activity,
+  CalendarDays,
   CheckCircle,
   AlertTriangle,
   Zap,
@@ -11,6 +13,8 @@ import {
   Download,
   Plus,
 } from "lucide-react";
+import ChatbotLauncher from "../components/ChatbotLauncher";
+import ScenarioExplorer from "../components/ScenarioExplorer";
 
 /* ── Progress Bar Component ── */
 function ProgressBar() {
@@ -34,7 +38,7 @@ function ProgressBar() {
             </span>
           </div>
           {i < steps.length - 1 && (
-            <div className="w-[60px] h-0.5 mx-2 mb-5 rounded-sm bg-accent" />
+            <div className="w-15 h-0.5 mx-2 mb-5 rounded-sm bg-accent" />
           )}
         </div>
       ))}
@@ -121,7 +125,7 @@ export default function ReportPage() {
 
   return (
     <div className="flex justify-center items-start min-h-screen px-4 py-8">
-      <div className="w-full max-w-[680px] flex flex-col gap-6 pt-4">
+      <div className="w-full max-w-170 flex flex-col gap-6 pt-4">
         {/* Back Link */}
         <Link
           to="/"
@@ -137,8 +141,8 @@ export default function ReportPage() {
         {/* Prediction Result Card */}
         <div className="bg-card border border-card-border rounded-[20px] overflow-hidden shadow-[0_16px_48px_rgba(0,0,0,0.3)]">
           {/* Header */}
-          <div className="flex items-center gap-3 px-6 py-5 border-b border-card-border bg-accent/[0.03]">
-            <div className="flex items-center justify-center w-[38px] h-[38px] bg-accent-glow rounded-xl text-accent shrink-0">
+          <div className="flex items-center gap-3 px-6 py-5 border-b border-card-border bg-accent/3">
+            <div className="flex items-center justify-center w-9.5 h-9.5 bg-accent-glow rounded-xl text-accent shrink-0">
               <Activity size={20} />
             </div>
             <div>
@@ -155,12 +159,12 @@ export default function ReportPage() {
           <div
             className={`mx-6 my-6 px-6 py-5 rounded-xl flex items-center gap-4 ${
               isUnlikely
-                ? "bg-success/[0.06] border border-success/20"
-                : "bg-danger/[0.06] border border-danger/20"
+                ? "bg-success/6 border border-success/20"
+                : "bg-danger/6 border border-danger/20"
             }`}
           >
             <div
-              className={`shrink-0 flex items-center justify-center w-12 h-12 rounded-full bg-white/[0.04] ${
+              className={`shrink-0 flex items-center justify-center w-12 h-12 rounded-full bg-white/4 ${
                 isUnlikely ? "text-success" : "text-danger"
               }`}
             >
@@ -187,24 +191,71 @@ export default function ReportPage() {
 
         {/* AI Explanation Section */}
         {explanation && (
-          <div className="bg-card border border-card-border rounded-[20px] overflow-hidden shadow-[0_12px_40px_rgba(0,0,0,0.2)]">
-            <div className="flex items-center gap-3 px-6 py-5 bg-accent/[0.03] border-b border-card-border">
-              <div className="flex items-center justify-center w-[34px] h-[34px] bg-accent-glow rounded-[10px] text-accent shrink-0">
-                <Zap size={18} />
+          <>
+            <div className="bg-card border border-card-border rounded-[20px] overflow-hidden shadow-[0_12px_40px_rgba(0,0,0,0.2)]">
+              <div className="flex items-center gap-3 px-6 py-5 bg-accent/3 border-b border-card-border">
+                <div className="flex items-center justify-center w-8.5 h-8.5 bg-accent-glow rounded-[10px] text-accent shrink-0">
+                  <Zap size={18} />
+                </div>
+                <div>
+                  <h3 className="text-[0.95rem] font-bold text-text-primary">
+                    AI-Powered Explanation
+                  </h3>
+                  <p className="text-[0.76rem] text-text-muted mt-0.5">
+                    AI-generated for easy understanding
+                  </p>
+                </div>
               </div>
-              <div>
-                <h3 className="text-[0.95rem] font-bold text-text-primary">
-                  AI-Powered Explanation
-                </h3>
-                <p className="text-[0.76rem] text-text-muted mt-0.5">
-                  AI-generated for easy understanding
-                </p>
+              <div className="p-6 flex flex-col gap-2">
+                <ExplanationBody explanation={explanation} />
               </div>
             </div>
-            <div className="p-6 flex flex-col gap-2">
-              <ExplanationBody explanation={explanation} />
+            <ScenarioExplorer reportContext={data} />
+            <div className="bg-card border border-card-border rounded-[20px] overflow-hidden shadow-[0_12px_40px_rgba(0,0,0,0.2)]">
+              <div className="flex items-center gap-3 px-6 py-5 border-b border-card-border bg-accent/3">
+                <div className="flex items-center justify-center w-8.5 h-8.5 bg-accent-glow rounded-[10px] text-accent shrink-0">
+                  <CalendarDays size={18} />
+                </div>
+                <div>
+                  <h3 className="text-[0.95rem] font-bold text-text-primary">
+                    Follow-Up Planner
+                  </h3>
+                  <p className="text-[0.76rem] text-text-muted mt-0.5">
+                    Moved to a dedicated route so the report page stays easier
+                    to scan.
+                  </p>
+                </div>
+              </div>
+
+              <div className="p-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0 space-y-2">
+                  <p className="text-[0.9rem] leading-relaxed text-text-secondary wrap-break-word">
+                    Open the dedicated follow-up page to view the review plan,
+                    warning signs, and discussion points without crowding this
+                    report.
+                  </p>
+                  <div className="flex flex-wrap gap-2 text-[0.72rem] text-text-muted">
+                    <span className="rounded-full border border-white/10 bg-white/4 px-3 py-1.5">
+                      Dedicated route
+                    </span>
+                    <span className="rounded-full border border-white/10 bg-white/4 px-3 py-1.5">
+                      Cleaner report layout
+                    </span>
+                  </div>
+                </div>
+
+                <Link
+                  to="/follow-up-plan"
+                  state={data}
+                  className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-border bg-transparent px-4 py-2.5 text-[0.85rem] font-semibold text-text-primary transition-all duration-300 hover:border-accent/40 hover:bg-white/3 hover:text-white"
+                >
+                  Open follow-up plan
+                  <ArrowRight size={16} />
+                </Link>
+              </div>
             </div>
-          </div>
+            <ChatbotLauncher reportContext={data} />
+          </>
         )}
 
         {/* Download Section */}
@@ -223,7 +274,7 @@ export default function ReportPage() {
             </div>
             <a
               href="/api/download_report"
-              className="inline-flex items-center gap-1.5 px-5 py-2.5 bg-gradient-to-br from-accent to-purple-600 text-white rounded-[10px] text-[0.85rem] font-semibold no-underline whitespace-nowrap shadow-[0_4px_14px_rgba(99,102,241,0.25)] hover:-translate-y-0.5 hover:shadow-[0_6px_20px_rgba(99,102,241,0.4)] transition-all duration-300"
+              className="inline-flex items-center gap-1.5 px-5 py-2.5 bg-linear-to-br from-accent to-purple-600 text-white rounded-[10px] text-[0.85rem] font-semibold no-underline whitespace-nowrap shadow-[0_4px_14px_rgba(99,102,241,0.25)] hover:-translate-y-0.5 hover:shadow-[0_6px_20px_rgba(99,102,241,0.4)] transition-all duration-300"
             >
               <Download size={18} />
               Download PDF
@@ -235,7 +286,7 @@ export default function ReportPage() {
         <div className="text-center">
           <Link
             to="/predict"
-            className="inline-flex items-center gap-1.5 px-6 py-2.5 bg-transparent text-text-secondary border border-border rounded-xl text-[0.88rem] font-medium no-underline hover:text-text-primary hover:border-text-muted hover:bg-white/[0.03] transition-all duration-300"
+            className="inline-flex items-center gap-1.5 px-6 py-2.5 bg-transparent text-text-secondary border border-border rounded-xl text-[0.88rem] font-medium no-underline hover:text-text-primary hover:border-text-muted hover:bg-white/3 transition-all duration-300"
           >
             <Plus size={16} />
             New Prediction
